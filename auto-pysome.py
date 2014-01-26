@@ -3,9 +3,10 @@ from subprocess import call
 import sqlite3 as lite
 import fnmatch
 from PIL import Image
+import os
 
 # tmp default
-TMP_MEDIA_PATH = '/mnt/esata/pics/Italien/'
+TMP_MEDIA_PATH = '/mnt/esata/pics/Italien/Rom 2009/'
 imgDBname = 'Imgs'
 vidDBname = 'Vids'
 
@@ -15,30 +16,19 @@ class db:
         self.mediaPath = mediaPath
         self.nImages = None
         self.nVideos = None
+        self.legitIMGfiles = []
+        self.legitVIDfiles = []
         self.ImgMatch = ['*.jpg', '*.JPG']
-        self.VidMatch = ['*.avi', '*.mp4']
+        self.VidMatch = ['*.avi', '*.AVI', '*.mp4', '*.MP4']
 
     def Create(self):
-        import os
-        print "dbCreate"
-        print self.mediaPath
-        legitIMGfiles = []
-        legitVIDfiles = []
+        print "Creating database using path = " + str(self.mediaPath)
         call(["sqlite3", self.dbPath, '.tables .exit'])
 
+        self.traversePath()
 
-        for root, subfolders, files in os.walk(self.mediaPath):
-            
-            for ext in self.ImgMatch:
-                for filename in fnmatch.filter(files, ext):
-                    # print os.path.join(root, filename)
-                    legitIMGfiles.append(os.path.join(root,filename))
-            for ext in self.VidMatch:
-                for filename in fnmatch.filter(files, ext):
-                    # print os.path.join(root, filename)
-                    legitVIDfiles.append(os.path.join(root,filename))
 
-#         for item in legitIMGfiles:
+#         for item in self.legitIMGfiles:
 #             print self.readExif(item)
 
         con = lite.connect(self.dbPath)
@@ -51,19 +41,49 @@ class db:
             cur.execute("DROP TABLE IF EXISTS " + str(imgDBname))
             cur.execute("DROP TABLE IF EXISTS " + str(vidDBname))
 
+            self.addImages(cur)
 
-            cur.execute("CREATE TABLE "+ str(imgDBname) + "(Id INTEGER PRIMARY KEY, Filename TEXT, Date TEXT);") 
-            for item in legitIMGfiles:
-                date = self.readExif(item)
-                if isinstance(date, basestring):
-                #if date != 0:
-                    cur.execute("INSERT INTO " + str(imgDBname) + "(Filename) VALUES ('" + item + ", " + date + "');")
 
-#             cur.execute("CREATE TABLE "+ str(vidDBname) + "(Id INTEGER PRIMARY KEY, Filename TEXT);") 
-            self.nImages = cur.lastrowid
-            print "last " + str( self.nImages)
+
+    def traversePath(self):
+        for root, subfolders, files in os.walk(self.mediaPath):
+            
+            for ext in self.ImgMatch:
+                for filename in fnmatch.filter(files, ext):
+                    # print os.path.join(root, filename)
+                    self.legitIMGfiles.append(os.path.join(root,filename))
+            for ext in self.VidMatch:
+                for filename in fnmatch.filter(files, ext):
+                    # print os.path.join(root, filename)
+                    self.legitVIDfiles.append(os.path.join(root,filename))
+
+    def addImages(self, dbCon):
+        dbCon.execute("CREATE TABLE "+ str(imgDBname) + "(Id INTEGER PRIMARY KEY, Filename TEXT, Date TEXT);") 
+        for item in self.legitIMGfiles:
+            date = self.readExif(item)
+            if isinstance(date, basestring):
+            #if date != 0:
+                dbCon.execute("INSERT INTO " + str(imgDBname) + "(Filename) VALUES ('" + item + ", " + date + "');")
+
+        self.nImages = dbCon.lastrowid
+        print " added images. last index " + str( self.nImages)
+
+    def addVideos(self, dbCon):
+        dbCon.execute("CREATE TABLE "+ str(vidDBname) + "(Id INTEGER PRIMARY KEY, Filename TEXT, Date TEXT);") 
+        for item in self.legitVIDfiles:
+            date = self.readExifVideo(item)
+            # if isinstance(date, basestring):
+                # dbCon.execute("INSERT INTO " + str(vidDBname) + "(Filename) VALUES ('" + item + ", " + date + "');")
+
+        self.nVideos = dbCon.lastrowid
+        print " added videos. last index " + str( self.nImages)
+
+    def readExifVideo(self, filename):
+        # TODO: read resolution, length
+        return 0
 
     def readExif(self, filename):
+        # TODO also read resolution
         try:
             img = Image.open(filename)
             exif_data = img._getexif()
