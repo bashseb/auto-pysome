@@ -9,6 +9,7 @@ I'm starting to really like the auto awsome videos my mobile phone sometimes spi
 This program can be used in two modi:
 
  A. Actions on the database:
+ 
     * Create database: `auto-pysome.py --db-create [PATH] `
     * Update database: `auto-pysome.py --db-update sqlite-db-file`
     * Reset database:  `auto-pysome.py --db-reset  sqlite-db-file`
@@ -17,9 +18,9 @@ This program can be used in two modi:
  B. Clustering 
  
     * Cluster database: `auto-pysome.py --clustering --dbfile <sqlite-db-file> [--name=<name>] [OPTIONS] `
-    * Obtain info/statistics on clusters (also presented at the end of `--clustering`):  `auto-pysome.py --cluster-info [--name=<name>fv]`
+    * Obtain info/statistics on clusters (also presented at the end of `--clustering`):  `auto-pysome.py --cluster-info [--name=<name>]`
     
- C. Create a video from a cluster
+  C. Create a video from a cluster
  
     * Create a new random clip from cluster items: `auto-pysome.py --create [--length=60s] [--audio=external (default)|internal] [<cluster-id(s)]`
     * View cluster material: `auto-pysome.py --review <cluster-no>`. Interactive control lets you select or deselect items, and create project.
