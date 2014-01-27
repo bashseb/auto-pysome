@@ -5,6 +5,13 @@ A non-cloud clone of Googles *auto awesome videos* to create videos in a similar
 
 I'm starting to really like the auto awsome videos my mobile phone sometimes spits out. It combines photos and videos taken recently into a short clip with underlying music. The choice of music, pictures and video sequences appears to be rather random. Possibly blurry images/ similar images are descared. I would like to do something similar to the huge collection of videos and photos I have already stored on my computer. 
 
+#### Dependencies
+
+ * sqlite3  to store meta info of files
+ * python2 
+ * ffmpeg to create the clip
+ * [ffprobe, eventually]
+ * mplayer to preview (maybe also -identify)
 
 This program can be used in two modi:
 
@@ -27,11 +34,6 @@ This program can be used in two modi:
     * Edit cluster sequence (invokes GUI): `auto-pysome.py --edit-cluster <cluster-id> [project-id]`.
     * Set cluster background audio: `auto-pysome.py --bg-audio=<path-to-audio-file>`
     
-    
-    
- 
- 
-
 
 #### Recall from Google
 
