@@ -22,7 +22,7 @@ class db:
         self.VidMatch = ['*.avi', '*.AVI', '*.mp4', '*.MP4']
 
     def Create(self):
-        print "Creating database using path = " + str(self.mediaPath)
+        print "Creating database ('" + str(self.dbPath) + "') using path = " + str(self.mediaPath)
         call(["sqlite3", self.dbPath, '.tables .exit'])
 
         self.traversePath()
@@ -58,12 +58,12 @@ class db:
                     self.legitVIDfiles.append(os.path.join(root,filename))
 
     def addImages(self, dbCon):
-        dbCon.execute("CREATE TABLE "+ str(imgDBname) + "(Id INTEGER PRIMARY KEY, Filename TEXT, Date TEXT);") 
+        dbCon.execute("CREATE TABLE "+ str(imgDBname) + "(Id INTEGER PRIMARY KEY, Filename TEXT, Date TEXT, Xres INTEGER, Yres INTEGER);") 
         for item in self.legitIMGfiles:
-            date = self.readExif(item)
+            date, reso = self.readExif(item)
             if isinstance(date, basestring):
             #if date != 0:
-                dbCon.execute("INSERT INTO " + str(imgDBname) + "(Filename) VALUES ('" + item + ", " + date + "');")
+                dbCon.execute("INSERT INTO " + str(imgDBname) + "(Filename) VALUES ('" + item + ", " + date + ", {0}, {1}');".format(reso[0], reso[1]))
 
         self.nImages = dbCon.lastrowid
         print " added images. last index " + str( self.nImages)
@@ -83,27 +83,30 @@ class db:
         return 0
 
     def readExif(self, filename):
-        # TODO also read resolution
         try:
             img = Image.open(filename)
             exif_data = img._getexif()
         #  306: file change date and time
         #  36867: u'2009:03:29 12:00:55', Date time original
         #  36868: u'2009:03:29 12:00:55', date time original  Digitized
+            datestr = ''
             if 306 in exif_data:
-                return exif_data[306]
+                datestr =  exif_data[306]
             elif 36867 in exif_data:
-                return exif_data[36867]
+                datestr = exif_data[36867]
             elif 36868 in exif_data:
-                return exif_data[36868]
+                datestr = exif_data[36868]
             else:
                 print "ignoring " + str(filename)
+                return 0, 0
+            return datestr, img.size
+            
         except: 
             # TODO:
             # fallback on file create date
             print filename + str(" ignored.")
 
-        return 0
+        return 0, 0
 
 
 if __name__ == "__main__":
