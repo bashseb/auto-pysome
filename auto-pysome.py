@@ -27,12 +27,7 @@ class db:
 
         self.traversePath()
 
-
-#         for item in self.legitIMGfiles:
-#             print self.readExif(item)
-
         con = lite.connect(self.dbPath)
-
         with con:
             cur = con.cursor()
             cur.execute('SELECT SQLITE_VERSION()')
@@ -80,6 +75,11 @@ class db:
 
     def readExifVideo(self, filename):
         # TODO: read resolution, length
+        # there isn't really any EXIF standard on video files.  'Hachoir' could be a match, but it seems even easier with mplayer -identify
+        # or ffprobe -loglevel error -show_streams ...
+        # subprocess.PIPE
+        # Popen or check_output
+        # mplayer -vo dummy -ao dummy -identify 2>/dev/null |  grep ...
         return 0
 
     def readExif(self, filename):
