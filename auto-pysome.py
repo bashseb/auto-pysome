@@ -8,8 +8,6 @@ import os
 
 # tmp default
 TMP_MEDIA_PATH = '/home/seb/tmp/testfolder/'
-imgDBname = 'Imgs'
-vidDBname = 'Vids'
 
 class db:
     def __init__(self, path=None, mediaPath=None):
@@ -40,8 +38,6 @@ class db:
             # Type is 0 for image, 100 for video
             self.addImages(cur)
             self.addVideos(cur)
-
-
 
     def traversePath(self):
         for root, subfolders, files in os.walk(self.mediaPath):
@@ -116,7 +112,7 @@ class db:
             else:
                 print "Video {0} doesn't parse WIDTH/HEIGHT or LENGTH correctly".format(filename)
                 print r
-                return 0
+                return 0, 0, 0, 0
         # match date, must start with '20'
         regex = re.compile("(?P<key>ID_CLIP_INFO_VALUE[0-3]*?)=(?P<value>20.*:.*:.*)$",re.MULTILINE)
         r = regex.findall(out)
@@ -150,7 +146,7 @@ class db:
                 datestr = exif_data[36868]
             else:
                 print "ignoring " + str(filename)
-                return 0, 0
+                return 0, 0, 0
             if 274 in exif_data:
                 # row 0, column 0 default 1: 0,0 top left . 2: top right , 4: bot right, 4: bot left
                 # 5: left top, right top, right bot, left bot
@@ -164,7 +160,7 @@ class db:
             # fallback on file create date
             print filename + str(" ignored.")
 
-        return 0, 0
+        return 0, 0, 0
 
 def numint(s):
     try:
