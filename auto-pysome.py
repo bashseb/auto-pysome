@@ -1,12 +1,13 @@
 #!/usr/bin/env python2
-from subprocess import call
+import subprocess
+import re
 import sqlite3 as lite
 import fnmatch
 from PIL import Image
 import os
 
 # tmp default
-TMP_MEDIA_PATH = '/mnt/esata/pics/Italien/Rom 2009/'
+TMP_MEDIA_PATH = '/home/seb/tmp/testfolder/'
 imgDBname = 'Imgs'
 vidDBname = 'Vids'
 
@@ -19,11 +20,11 @@ class db:
         self.legitIMGfiles = []
         self.legitVIDfiles = []
         self.ImgMatch = ['*.jpg', '*.JPG']
-        self.VidMatch = ['*.avi', '*.AVI', '*.mp4', '*.MP4']
+        self.VidMatch = ['*.avi', '*.AVI', '*.mp4', '*.MP4', '*.MOV', '*.mov']
 
     def Create(self):
         print "Creating database ('" + str(self.dbPath) + "') using path = " + str(self.mediaPath)
-        call(["sqlite3", self.dbPath, '.tables .exit'])
+        subprocess.call(["sqlite3", self.dbPath, '.tables .exit'])
 
         self.traversePath()
 
@@ -33,10 +34,12 @@ class db:
             cur.execute('SELECT SQLITE_VERSION()')
             data = cur.fetchone()
             print "SQLite version: %s" % data  
-            cur.execute("DROP TABLE IF EXISTS " + str(imgDBname))
-            cur.execute("DROP TABLE IF EXISTS " + str(vidDBname))
+            cur.execute("DROP TABLE IF EXISTS Media")
 
+            cur.execute("CREATE TABLE Media (Id INTEGER PRIMARY KEY, Filename TEXT, Date TEXT, Type INTEGER, Xres INTEGER, Yres INTEGER, Orientation INTEGER, Length FLOAT);") 
+            # Type is 0 for image, 100 for video
             self.addImages(cur)
+            self.addVideos(cur)
 
 
 
@@ -52,35 +55,84 @@ class db:
                     # print os.path.join(root, filename)
                     self.legitVIDfiles.append(os.path.join(root,filename))
 
+        if __debug__:
+            print "img files"
+            print self.legitIMGfiles
+            print "video files"
+            print self.legitVIDfiles
+
     def addImages(self, dbCon):
-        dbCon.execute("CREATE TABLE "+ str(imgDBname) + "(Id INTEGER PRIMARY KEY, Filename TEXT, Date TEXT, Xres INTEGER, Yres INTEGER);") 
         for item in self.legitIMGfiles:
-            date, reso = self.readExif(item)
+            date, reso, orient = self.readExif(item)
+            if __debug__:
+                print "adding file '{0}' with date '{1}', resolution '{2}' and orientation '{3}'".format(item, date, reso, orient)
             if isinstance(date, basestring):
             #if date != 0:
-                dbCon.execute("INSERT INTO " + str(imgDBname) + "(Filename) VALUES ('" + item + ", " + date + ", {0}, {1}');".format(reso[0], reso[1]))
+                # insert with type = 0 (imgs) and Length = 0.
+                dbCon.execute("INSERT INTO Media(Filename, Date, Type, Xres, Yres, Orientation, Length) VALUES ('" + item + "', '" + date + "', 0, {0}, {1}, {2}, 0.);".format(reso[0], reso[1], orient))
 
         self.nImages = dbCon.lastrowid
         print " added images. last index " + str( self.nImages)
 
     def addVideos(self, dbCon):
-        dbCon.execute("CREATE TABLE "+ str(vidDBname) + "(Id INTEGER PRIMARY KEY, Filename TEXT, Date TEXT);") 
         for item in self.legitVIDfiles:
-            date = self.readExifVideo(item)
-            # if isinstance(date, basestring):
-                # dbCon.execute("INSERT INTO " + str(vidDBname) + "(Filename) VALUES ('" + item + ", " + date + "');")
+            length, width, height, date  = self.readExifVideo(item)
+
+            if length > 0:
+                if __debug__:
+                    print "adding file '{0}' with date '{1}', resolution '{2}' and length '{3}'s".format(item, date, (width,height), length)
+                dbCon.execute("INSERT INTO Media(Filename, Date, Type, Xres, Yres, Orientation, Length) VALUES ('" + item + "', '" + date + "', 100, {0}, {1}, 1, {2});".format(width, height, length))
 
         self.nVideos = dbCon.lastrowid
         print " added videos. last index " + str( self.nImages)
 
     def readExifVideo(self, filename):
-        # TODO: read resolution, length
         # there isn't really any EXIF standard on video files.  'Hachoir' could be a match, but it seems even easier with mplayer -identify
         # or ffprobe -loglevel error -show_streams ...
-        # subprocess.PIPE
-        # Popen or check_output
         # mplayer -vo dummy -ao dummy -identify 2>/dev/null |  grep ...
-        return 0
+        return self.readExifVideoMplayer(filename)
+
+    def readExifVideoMplayer(self, filename):
+        # alternative is `ffprobe`, but this doesn't show e.g. Digitization time of 'olympus'
+        # length (ID_LENGTH) , resolution (ID_VIDEO_WIDTH, ID_VIDEO_HEIGHT), date (ID_CLIP_INFO
+        FNULL = open(os.devnull, 'w')
+        p = subprocess.Popen(["mplayer", "-vo", "dummy", "-ao", "dummy", "-identify", filename], stdout=subprocess.PIPE, stderr=FNULL)
+        FNULL.close()
+        out = subprocess.check_output(('grep', '^ID_'), stdin=p.stdout)
+
+        # regex = re.compile("(?P<key>\w*?)=(?P<value>[0-9.]*)$",re.MULTILINE) # find all ID_..=number fields
+        regex = re.compile("(?P<key>ID_LENGTH|ID_VIDEO_WIDTH|ID_VIDEO_HEIGHT*?)=(?P<value>[0-9.]*)$",re.MULTILINE)
+        r = regex.findall(out)
+        for tup in r:
+            if tup[0] == 'ID_VIDEO_WIDTH':
+                w=numint(tup[1])
+            elif tup[0] == 'ID_VIDEO_HEIGHT':
+                h=numint(tup[1])
+            elif tup[0] == 'ID_LENGTH':
+                try:
+                    l = float(tup[1])
+                except:
+                    print "Value {0} is not a float".format(tup[1])
+            else:
+                print "Video {0} doesn't parse WIDTH/HEIGHT or LENGTH correctly".format(filename)
+                print r
+                return 0
+        # match date, must start with '20'
+        regex = re.compile("(?P<key>ID_CLIP_INFO_VALUE[0-3]*?)=(?P<value>20.*:.*:.*)$",re.MULTILINE)
+        r = regex.findall(out)
+        if len(r) == 1:
+            if isinstance(r[0][1], basestring):
+                date = r[0][1]
+        else:
+            print "Video {0} doesn't parse DATE correctly".format(filename)
+            # TODO olympus uses strange date format:
+            # [('ID_CLIP_INFO_VALUE0', 'Fri Dec 27 20:48:47 2013'), ('ID_CLIP_INFO_VALUE1', 'OLYMPUS E-P1')]
+            # normally 2013-03-06 20:14:48
+            print r
+            return 0, 0, 0, 0
+
+        return l, w, h, date
+
 
     def readExif(self, filename):
         try:
@@ -99,7 +151,13 @@ class db:
             else:
                 print "ignoring " + str(filename)
                 return 0, 0
-            return datestr, img.size
+            if 274 in exif_data:
+                # row 0, column 0 default 1: 0,0 top left . 2: top right , 4: bot right, 4: bot left
+                # 5: left top, right top, right bot, left bot
+                orientation = exif_data[274] 
+            else:
+                orientation = 1
+            return datestr, img.size, orientation
             
         except: 
             # TODO:
@@ -108,6 +166,11 @@ class db:
 
         return 0, 0
 
+def numint(s):
+    try:
+        return int(s)
+    except:
+        print "Value {0} is not an integer".format(s)
 
 if __name__ == "__main__":
     mydb = db(path="my-test.sqlite", mediaPath=TMP_MEDIA_PATH)
