@@ -3,17 +3,19 @@ auto-pysome
 
 A non-cloud clone of Googles *auto awesome videos* to create videos in a similar fashion on your local files
 
-I'm starting to really like the auto awsome videos my mobile phone sometimes spits out. It combines photos and videos taken recently into a short clip with underlying music. The choice of music, pictures and video sequences appears to be rather random. Possibly blurry images/ similar images are descared. I would like to do something similar to the huge collection of videos and photos I have already stored on my computer. 
+I'm starting to really like the auto awsome videos my mobile phone sometimes spits out. It combines photos and videos taken recently into a short clip with underlying music. The choice of music, pictures and video sequences appears to be rather random. Possibly blurry images/ similar images are descared. 
+
+I would like to do something similar to the huge collection of videos and photos I have already stored on my computer. 
 
 #### Dependencies
 
- * sqlite3  to store meta info of files
- * python2 
- * ffmpeg to create the clip
- * [ffprobe, eventually]
- * mplayer to preview (maybe also -identify)
+ * `sqlite3` to store meta info of files
+ * `python2 `
+ * `ffmpeg` to create the clip
+ * [`ffprobe`, eventually]
+ * `mplayer` to preview (maybe also -identify)
 
-This program can be used in two modi:
+This program can be used in three modi:
 
  A. Actions on the database:
  
@@ -24,7 +26,7 @@ This program can be used in two modi:
     
  B. Clustering 
  
-    * Cluster database: `auto-pysome.py --clustering --dbfile <sqlite-db-file> [--name=<name>] [OPTIONS] `
+    * Cluster database: `auto-pysome.py --clustering [--dbfile <sqlite-db-file>] [--name=<name>] [OPTIONS] `
     * Obtain info/statistics on clusters (also presented at the end of `--clustering`):  `auto-pysome.py --cluster-info [--name=<name>]`
     
   C. Create a video from a cluster
@@ -63,7 +65,11 @@ The photo app capable of doing these videos has minimal controls:
     * ???
     * future: location
 4. Run a time clustering algorithm to separate the stream of photos/videos into clusters.
-5. present statistics of the clusters
+   * Clustering by default is done by *folders*, since this is the most likely organizational unit. If files within the same date range of a folder are found in different folders, they are merged into the cluster. 
+   * Alternative clustering methods is *nearest-date-neighbors* with a specified interval (in units of *days*).
+
+5. present statistics of the clusters. 
+6. preview content of cluster
 6. Default setting for a auto-pysome video is 1 minute length and 10 photos.
 
 ##### Tools used
