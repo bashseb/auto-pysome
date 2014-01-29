@@ -4,7 +4,10 @@ import re
 import sqlite3 as lite
 import fnmatch
 from PIL import Image
+import sys
 import os
+
+import argparse
 
 # tmp default
 TMP_MEDIA_PATH = '/home/seb/tmp/testfolder/'
@@ -20,26 +23,27 @@ class db:
         self.ImgMatch = ['*.jpg', '*.JPG']
         self.VidMatch = ['*.avi', '*.AVI', '*.mp4', '*.MP4', '*.MOV', '*.mov']
 
-    def Create(self):
-        print "Creating database ('" + str(self.dbPath) + "') using path = " + str(self.mediaPath)
+    def create(self, verb = 0):
+        print "Creating database ('" + str(self.dbPath) + "') using path = '{}'".format(self.mediaPath)
         subprocess.call(["sqlite3", self.dbPath, '.tables .exit'])
 
-        self.traversePath()
+        self.traversePath(verb=verb)
 
         con = lite.connect(self.dbPath)
         with con:
             cur = con.cursor()
             cur.execute('SELECT SQLITE_VERSION()')
             data = cur.fetchone()
-            print "SQLite version: %s" % data  
+            if verb > 0:
+                print "SQLite version: %s" % data  
             cur.execute("DROP TABLE IF EXISTS Media")
 
             cur.execute("CREATE TABLE Media (Id INTEGER PRIMARY KEY, Filename TEXT, Date TEXT, Type INTEGER, Xres INTEGER, Yres INTEGER, Orientation INTEGER, Length FLOAT);") 
             # Type is 0 for image, 100 for video
-            self.addImages(cur)
-            self.addVideos(cur)
+            self.addImages(cur, verb=verb)
+            self.addVideos(cur, verb=verb)
 
-    def traversePath(self):
+    def traversePath(self, verb=0):
         for root, subfolders, files in os.walk(self.mediaPath):
             
             for ext in self.ImgMatch:
@@ -51,16 +55,10 @@ class db:
                     # print os.path.join(root, filename)
                     self.legitVIDfiles.append(os.path.join(root,filename))
 
-        if __debug__:
-            print "img files"
-            print self.legitIMGfiles
-            print "video files"
-            print self.legitVIDfiles
-
-    def addImages(self, dbCon):
+    def addImages(self, dbCon, verb=0):
         for item in self.legitIMGfiles:
             date, reso, orient = self.readExif(item)
-            if __debug__:
+            if verb > 0:
                 print "adding file '{0}' with date '{1}', resolution '{2}' and orientation '{3}'".format(item, date, reso, orient)
             if isinstance(date, basestring):
             #if date != 0:
@@ -70,17 +68,17 @@ class db:
         self.nImages = dbCon.lastrowid
         print " added images. last index " + str( self.nImages)
 
-    def addVideos(self, dbCon):
+    def addVideos(self, dbCon, verb = 0):
         for item in self.legitVIDfiles:
             length, width, height, date  = self.readExifVideo(item)
 
             if length > 0:
-                if __debug__:
+                if verb > 0:
                     print "adding file '{0}' with date '{1}', resolution '{2}' and length '{3}'s".format(item, date, (width,height), length)
                 dbCon.execute("INSERT INTO Media(Filename, Date, Type, Xres, Yres, Orientation, Length) VALUES ('" + item + "', '" + date + "', 100, {0}, {1}, 1, {2});".format(width, height, length))
 
         self.nVideos = dbCon.lastrowid
-        print " added videos. last index " + str( self.nImages)
+        print " added videos. last index " + str( self.nVideos)
 
     def readExifVideo(self, filename):
         # there isn't really any EXIF standard on video files.  'Hachoir' could be a match, but it seems even easier with mplayer -identify
@@ -111,7 +109,7 @@ class db:
                     print "Value {0} is not a float".format(tup[1])
             else:
                 print "Video {0} doesn't parse WIDTH/HEIGHT or LENGTH correctly".format(filename)
-                print r
+                #print r
                 return 0, 0, 0, 0
         # match date, must start with '20'
         regex = re.compile("(?P<key>ID_CLIP_INFO_VALUE[0-3]*?)=(?P<value>20.*:.*:.*)$",re.MULTILINE)
@@ -124,7 +122,7 @@ class db:
             # TODO olympus uses strange date format:
             # [('ID_CLIP_INFO_VALUE0', 'Fri Dec 27 20:48:47 2013'), ('ID_CLIP_INFO_VALUE1', 'OLYMPUS E-P1')]
             # normally 2013-03-06 20:14:48
-            print r
+            # print r
             return 0, 0, 0, 0
 
         return l, w, h, date
@@ -162,12 +160,75 @@ class db:
 
         return 0, 0, 0
 
+    def check(self, verb=0):
+
+        con = lite.connect(self.dbPath)
+        with con:
+            cur = con.cursor()
+            cur.execute('SELECT SQLITE_VERSION()')
+            data = cur.fetchone()
+            if verb > 0:
+                print "SQLite version: %s" % data  
+
+                # basic queries:
+                # nImages
+                # nVideos
+                # Date first
+                # Date last
+                # No of folders? 
+                # folder names?
+
 def numint(s):
     try:
         return int(s)
     except:
         print "Value {0} is not an integer".format(s)
 
+def parseArgs():
+    parser = argparse.ArgumentParser(description="Create randomized clips from your image and video collection")
+    parser.add_argument("-v", "--verbose", help="increase output verbosity", action="store_true")
+
+    # database options
+    parser.add_argument('-c', '--dbcreate', help="create database", action="store_true")
+    parser.add_argument('-f', '--dbfile', help="specify database file")
+    parser.add_argument('-p', '--path', help="specify media path")
+    parser.add_argument('-s', '--dbshow', help="show summary of database", action="store_true")
+
+    # clustering options
+    parser.add_argument('-cc', '--cluster', help="perform clustering of database", action="store_true")
+    parser.add_argument('-r', '--regex', help="match filenames in databse from a give REGEX" )
+    parser.add_argument('-d', '--day', help="match a particular day (YYYY-MM-DD format)" )
+    parser.add_argument('-dd', '--delta', help="return entities within range DELTA days of DAY (see -d option). If there is no -d option, today is assumed." )
+
+    args = parser.parse_args()
+
+    if args.dbcreate:
+        dbpath = "my-test.sqlite"
+        mediaPath=TMP_MEDIA_PATH
+
+        if args.dbfile:
+            dbpath = args.dbfile
+        if args.path:
+            mediaPath=args.path
+        
+        mydb = db(path=dbpath, mediaPath=mediaPath)
+        mydb.create(verb=args.verbose)
+
+    if args.dbshow:
+        dbpath = "my-test.sqlite"
+        if args.dbfile:
+            dbpath = args.dbfile
+
+        if os.path.isfile(dbpath): 
+            if os.path.getsize(dbpath) > 0:
+                mydb = db(path=dbpath)
+                mydb.check(verb=args.verbose)
+
+                sys.exit(0)
+
+        print "ERROR: {} is not a valid file".format(dbpath)
+
+
 if __name__ == "__main__":
-    mydb = db(path="my-test.sqlite", mediaPath=TMP_MEDIA_PATH)
-    mydb.Create()
+
+    parseArgs()
