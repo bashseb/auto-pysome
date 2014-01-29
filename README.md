@@ -26,7 +26,16 @@ This program can be used in three modi:
     
  B. Clustering 
  
-    * Cluster database: `auto-pysome.py --clustering [--dbfile <sqlite-db-file>] [--name=<name>] [OPTIONS] `
+    * Cluster database: `auto-pysome.py --clustering [--dbfile <sqlite-db-file>] [--name=<name>] [OPTIONS]`
+      Outputs the database IDs of the matching elements to stdout.
+      
+      Options:
+       `-v`, `--verbose` show data/min max of database or `--regex`
+       `-r`, `--regex=`  match *filenames* in database with a regular expression
+       `-d`, `--day=` match a particular day (format is *YYYY-MM-DD*)
+       `-dd`, `--delta-days` when combined with `-d` returns all entries within +- that day. If not, `-d<today>` is assumed.
+       
+      
     * Obtain info/statistics on clusters (also presented at the end of `--clustering`):  `auto-pysome.py --cluster-info [--name=<name>]`
     
   C. Create a video from a cluster
