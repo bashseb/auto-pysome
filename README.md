@@ -32,11 +32,15 @@ This program can be used in three modi:
     * Cluster database: `auto-pysome.py --cluster [-f database file]  [OPTIONS]`
       Outputs the database IDs of the matching elements to stdout.
       
+      Usage example: 
+       * `auto-pysome.py --cluster --regex='*prague*' > id-file`
+       * `auto-pysome.py --cluster --day=2010-06-01 --deltadays=2 | tar -czvf id-file.tgz`
+              
+      
       Options:
-       `-v`, `--verbose` show data/min max of database or `--regex`
        `-r`, `--regex=`  match *filenames* in database with a regular expression
        `-d`, `--day=` match a particular day (format is *YYYY-MM-DD*)
-       `-dd`, `--delta-days` when combined with `-d` returns all entries within +- that day. If not, `-d<today>` is assumed.
+       `-dd`, `--deltadays` when combined with `-d` returns all entries within +- that day. If not, `-d<today>` is assumed.
        
       
     * Obtain info/statistics on clusters (also presented at the end of `--clustering`):  `auto-pysome.py --cluster-info [--name=<name>]`
