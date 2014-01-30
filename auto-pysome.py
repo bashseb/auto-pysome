@@ -28,6 +28,10 @@ class db:
         subprocess.call(["sqlite3", self.dbPath, '.tables .exit'])
 
         self.traversePath(verb=verb)
+        
+        if verb > 0:
+            print "Found {} images and {} videos in path '{}'".format(len(self.legitIMGfiles), len(self.legitVIDfiles), self.mediaPath)
+            print "Trying to add them to sqlite3 database '{}' .... ".format(self.dbPath)
 
         con = lite.connect(self.dbPath)
         with con:
