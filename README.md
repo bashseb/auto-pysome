@@ -3,9 +3,13 @@ auto-pysome
 
 A non-cloud clone of Googles *auto awesome videos* to create videos in a similar fashion on your local files
 
-I'm starting to really like the auto awsome videos my mobile phone sometimes spits out. It combines photos and videos taken recently into a short clip with underlying music. The choice of music, pictures and video sequences appears to be rather random. Possibly blurry images/ similar images are descared. 
+I'm starting to really like the auto awsome videos my mobile phone sometimes spits out. It combines photos and videos taken recently into a short clip with underlying music. The choice of music, pictures and video sequences appears to be rather random. Eventually, blurry images/,similar images are descared, faces are tracked and audio channel of video is analyized. 
 
-I would like to do something similar to the huge collection of videos and photos I have already stored on my computer. 
+I would like to do something similar, but simpler, to the huge collection of videos and photos I have already stored on my computer. 
+
+This is a complete program, but only command line interface is provided. Feel free to fork/extend it.
+
+## Status: early development
 
 #### Dependencies
 
@@ -19,14 +23,13 @@ This program can be used in three modi:
 
  A. Actions on the database:
  
-    * Create database: `auto-pysome.py --db-create [PATH] `
-    * Update database: `auto-pysome.py --db-update sqlite-db-file`
-    * Reset database:  `auto-pysome.py --db-reset  sqlite-db-file`
-    * Show database: `auto-pysome.py --dbinfo sqlite-db-file`
+    * Create database: `auto-pysome.py --dbcreate [-f database file] [-p media path to scan]`
+    * **TODO** Update database: `auto-pysome.py --db-update sqlite-db-file`
+    * Show database: `auto-pysome.py --dbshow [-f database file]`
     
  B. Clustering 
  
-    * Cluster database: `auto-pysome.py --clustering [--dbfile <sqlite-db-file>] [--name=<name>] [OPTIONS]`
+    * Cluster database: `auto-pysome.py --cluster [-f database file]  [OPTIONS]`
       Outputs the database IDs of the matching elements to stdout.
       
       Options:
