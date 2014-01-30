@@ -21,36 +21,34 @@ This is a complete program, but only command line interface is provided. Feel fr
 
 This program can be used in three modi:
 
- A. Actions on the database:
+A. Actions on the database:
  
-    * Create database: `auto-pysome.py --dbcreate [-f database file] [-p media path to scan]`
-    * **TODO** Update database: `auto-pysome.py --db-update sqlite-db-file`
-    * Show database: `auto-pysome.py --dbshow [-f database file]`
+  * Create database: `auto-pysome.py --dbcreate [-f database file] [-p media path to scan]`
+  * **TODO** Update database: `auto-pysome.py --db-update sqlite-db-file`
+  * Show database: `auto-pysome.py --dbshow [-f database file]`
     
- B. Clustering 
+B. Clustering 
  
-    * Cluster database: `auto-pysome.py --cluster [-f database file]  [OPTIONS]`
-      Outputs the database IDs of the matching elements to stdout.
+ * Cluster database: `auto-pysome.py --cluster [-f database file]  [OPTIONS]`
+   Outputs the database IDs of the matching elements to stdout.
       
-      Usage example: 
-       * `auto-pysome.py --cluster --regex='*prague*' > id-file`
-       * `auto-pysome.py --cluster --day=2010-06-01 --deltadays=2 | tar -czvf id-file.tgz`
+    Usage example: 
+     * `auto-pysome.py --cluster --regex='*prague*' > id-file`
+     * `auto-pysome.py --cluster --day=2010-06-01 --deltadays=2 | tar -czvf id-file.tgz`
               
-      
-      Options:
-       `-r`, `--regex=`  match *filenames* in database with a regular expression
-       `-d`, `--day=` match a particular day (format is *YYYY-MM-DD*)
-       `-dd`, `--deltadays` when combined with `-d` returns all entries within +- that day. If not, `-d<today>` is assumed.
+    OPTIONS:
+     * `-r`, `--regex=`  match *filenames* in database with a regular expression
+     * `-d`, `--day=` match a particular day (format is *YYYY-MM-DD*)
+     * `-dd`, `--deltadays` when combined with `-d` returns all entries within +- that day. If not, `-d<today>` is assumed.
        
-      
-    * Obtain info/statistics on clusters (also presented at the end of `--clustering`):  `auto-pysome.py --cluster-info [--name=<name>]`
+  * Obtain info/statistics on clusters: **TODO** `auto-pysome.py --cluster-info [--name=<name>]`
     
-  C. Create a video from a cluster
+C. Create a video from a cluster
  
-    * Create a new random clip from cluster items: `auto-pysome.py --create [--length=60s] [--audio=external (default)|internal] [<cluster-id(s)]`
-    * View cluster material: `auto-pysome.py --review <cluster-no>`. Interactive control lets you select or deselect items, and create project.
-    * Edit cluster sequence (invokes GUI): `auto-pysome.py --edit-cluster <cluster-id> [project-id]`.
-    * Set cluster background audio: `auto-pysome.py --bg-audio=<path-to-audio-file>`
+  * Create a new random clip from cluster items: `auto-pysome.py --create [--length=60s] [--audio=external (default)|internal] [<cluster-id(s)]`
+  * View cluster material: `auto-pysome.py --review <cluster-no>`. Interactive control lets you select or deselect items, and create project.
+  * Edit cluster sequence (invokes GUI): `auto-pysome.py --edit-cluster <cluster-id> [project-id]`.
+  * Set cluster background audio: `auto-pysome.py --bg-audio=<path-to-audio-file>`
     
 
 #### Recall from Google
