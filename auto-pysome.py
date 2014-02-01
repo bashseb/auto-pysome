@@ -6,6 +6,9 @@ import fnmatch
 from PIL import Image
 import sys
 import os
+import dateutil.parser
+import time
+
 
 import argparse
 
@@ -120,7 +123,8 @@ class db:
         r = regex.findall(out)
         if len(r) == 1:
             if isinstance(r[0][1], basestring):
-                date = r[0][1]
+                dates = dateutil.parser.parse(r[0][1]) 
+
         else:
             print "Video {0} doesn't parse DATE correctly".format(filename)
             # TODO olympus uses strange date format:
@@ -129,7 +133,7 @@ class db:
             # print r
             return 0, 0, 0, 0
 
-        return l, w, h, date
+        return l, w, h, dates.isoformat()
 
 
     def readExif(self, filename):
@@ -149,13 +153,14 @@ class db:
             else:
                 print "ignoring " + str(filename)
                 return 0, 0, 0
+            dates = dateutil.parser.parse(datestr.replace(':','-',2)) # date format is YYYY:MM:DD HH:MM:SS, which is not easily parsable
             if 274 in exif_data:
                 # row 0, column 0 default 1: 0,0 top left . 2: top right , 4: bot right, 4: bot left
                 # 5: left top, right top, right bot, left bot
                 orientation = exif_data[274] 
             else:
                 orientation = 1
-            return datestr, img.size, orientation
+            return dates.isoformat(), img.size, orientation
             
         except: 
             # TODO:
@@ -164,7 +169,14 @@ class db:
 
         return 0, 0, 0
 
+    #def query(self, verb=0, 
+
+    def selectTime(self, day=time.strftime("%Y-%m-%d"), deltaDays=1): # default is today
+        print "TODO"
+
     def check(self, verb=0):
+        if verb> 1:
+            print "Show database information ('" + str(self.dbPath) + "') using path = '{}'".format(self.mediaPath)
 
         con = lite.connect(self.dbPath)
         with con:
@@ -173,13 +185,37 @@ class db:
             data = cur.fetchone()
             if verb > 0:
                 print "SQLite version: %s" % data  
+            cur.execute('SELECT COUNT(*) FROM Media')
+            nRows = cur.fetchone()
 
-                # basic queries:
-                # nImages
-                # nVideos
-                # Date first
-                # Date last
-                # No of folders? 
+            cur.execute('SELECT COUNT(DISTINCT Type) FROM Media')
+            nTypes = cur.fetchone()
+            cur.execute('SELECT COUNT(*) FROM Media WHERE Type>=100;')
+            self.nVideos = cur.fetchone()[0]
+            cur.execute('SELECT COUNT(*) FROM Media WHERE Type<100;')
+            self.nImages = cur.fetchone()[0]
+
+            cur.execute('SELECT MIN(Date) FROM Media')
+            minMedia = cur.fetchone()[0]
+            cur.execute('SELECT MAX(Date) FROM Media')
+            minMedia = cur.fetchone()[0]
+
+            cur.execute('SELECT MIN(Date) FROM Media WHERE Type>=100')
+            minVideos = cur.fetchone()[0]
+            cur.execute('SELECT MAX(Date) FROM Media WHERE Type>=100')
+            maxVideos = cur.fetchone()[0]
+
+            cur.execute('SELECT MIN(Date) FROM Media WHERE Type<100')
+            minImages = cur.fetchone()[0]
+            cur.execute('SELECT MAX(Date) FROM Media WHERE Type<100')
+            maxImages = cur.fetchone()[0]
+            # SELECT  Id, Filename, date FROM Media WHERE Type>=100 ORDER BY Date;
+
+
+            print "{} images taken between {} and {}".format(self.nImages, minImages, maxImages)
+            print "{} videos taken between {} and {}".format(self.nVideos, minVideos, maxVideos)
+
+                # TODO No of folders? 
                 # folder names?
 
 def numint(s):
@@ -218,7 +254,7 @@ def parseArgs():
         mydb = db(path=dbpath, mediaPath=mediaPath)
         mydb.create(verb=args.verbose)
 
-    if args.dbshow:
+    elif args.dbshow:
         dbpath = "my-test.sqlite"
         if args.dbfile:
             dbpath = args.dbfile
@@ -231,6 +267,12 @@ def parseArgs():
                 sys.exit(0)
 
         print "ERROR: {} is not a valid file".format(dbpath)
+
+    elif args.cluster:
+        print "TODO"
+    else:
+        print parser.format_help()
+
 
 
 if __name__ == "__main__":
