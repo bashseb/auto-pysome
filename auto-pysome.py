@@ -173,56 +173,37 @@ class db:
 
         return 0, 0, 0
 
-    #def query(self, verb=0, 
 
-    def querydb(self, regex = None, day=None, deltaDays=1, verb=0, pr='Id'):
+    def querydb(self, pattern = None, day=None, deltaDays=None, verb=0, pr='Id'):
+        if not deltaDays:
+            deltaDays = 1
         if verb> 0:
-            print "Get rows {} from db ('" + str(self.dbPath) + "') ".format(pr, self.mediaPath)
-            print "Regex '{}', Day {}, delta days {}".format(regex, day, deltaDays)
+            print "Get rows '{}' from db ('{}') ".format(pr,self.dbPath, self.mediaPath)
+            print "Pattern '{}', Day {}, delta days {}".format(pattern, day, deltaDays)
 
         if day:
             theday = dateutil.parser.parse(day)
+            deltaDays=numint(deltaDays)
             fromd = theday - relativedelta.relativedelta(days=deltaDays-1)
             tilld = theday + relativedelta.relativedelta(days=deltaDays)
         else:
-            fromd, tilld = self.check();
+            fromd, tilld = self.check(verb=verb);
 
-        if regex:
-            print regex
-        else:
-            regex = '*'
-
-        con = lite.connect(self.dbPath)
-        with con:
-            if verb > 0:
-                cur.execute("SELECT * FROM Media WHERE date between '{}' and '{}'".format(fromd.isoformat(), tilld.isoformat()))
-                for i in cur.fetchall():
-                    print i
-
-
-    def getRowsInDateRange(self, day=time.strftime("%Y-%m-%d"), deltaDays=1, verb=0): # default is today
-        if verb> 0:
-            print "Get items in date range ('" + str(self.dbPath) + "') using path = '{}'".format(self.mediaPath)
-            print "Day {}, delta days {}".format(day, deltaDays)
-
-        theday = dateutil.parser.parse(day)
-
-        fromd = theday - relativedelta.relativedelta(days=deltaDays-1)
-        tilld = theday + relativedelta.relativedelta(days=deltaDays)
+        if not pattern:
+            pattern = '%' # all matching wildcard
 
         con = lite.connect(self.dbPath)
         with con:
             cur = con.cursor()
 
             if verb > 0:
-                cur.execute("SELECT * FROM Media WHERE date between '{}' and '{}'".format(fromd.isoformat(), tilld.isoformat()))
+                cur.execute("SELECT * FROM Media WHERE date between '{}' and '{}' and Filename like '{}'".format(fromd.isoformat(), tilld.isoformat(),pattern))
                 for i in cur.fetchall():
                     print i
 
-            cur.execute("SELECT Id FROM Media WHERE date between '{}' and '{}'".format(fromd.isoformat(), tilld.isoformat()))
-            mIds = cur.fetchall()
+            cur.execute("SELECT {} FROM Media WHERE date between '{}' and '{}' and Filename like '{}'".format(pr, fromd.isoformat(), tilld.isoformat(),pattern))
 
-            return [a[0] for a in mIds]
+            return [a[0] for a in cur.fetchall()]
 
     def check(self, verb=0):
         if verb> 0:
@@ -249,7 +230,7 @@ class db:
             cur.execute('SELECT MIN(Date) FROM Media')
             minMedia = cur.fetchone()[0]
             cur.execute('SELECT MAX(Date) FROM Media')
-            minMedia = cur.fetchone()[0]
+            maxMedia = cur.fetchone()[0]
 
             cur.execute('SELECT MIN(Date) FROM Media WHERE Type>=100')
             minVideos = cur.fetchone()[0]
@@ -266,10 +247,21 @@ class db:
             print "{} images taken between {} and {}".format(self.nImages, minImages, maxImages)
             print "{} videos taken between {} and {}".format(self.nVideos, minVideos, maxVideos)
 
+            minMedia = dateutil.parser.parse(minMedia)
+            maxMedia = dateutil.parser.parse(maxMedia)
+
             return minMedia, maxMedia
 
                 # TODO No of folders? 
                 # folder names?
+    def generateNaive(self, mediaList, verb=0):
+        if verb> 0:
+            print "Generate naive clip from ('" + str(self.dbPath) + "') "
+        con = lite.connect(self.dbPath)
+        with con:
+            cur = con.cursor()
+
+
 
 def numint(s):
     try:
@@ -289,7 +281,7 @@ def parseArgs():
 
     # clustering options
     parser.add_argument('-cc', '--cluster', help="perform clustering of database", action="store_true")
-    parser.add_argument('-r', '--regex', help="match filenames in databse from a give REGEX" )
+    parser.add_argument('-sq', '--sqlLike', help="match filenames in database from a given sql like expression, e.g. --sqlLike=%tmp_[asdf][0-9]% " )
     parser.add_argument('-d', '--day', help="match a particular day (YYYY-MM-DD format)" )
     parser.add_argument('-dd', '--delta', help="return entities within range DELTA days of DAY (see -d option). If there is no -d option, today is assumed." )
     parser.add_argument('-pf', '--printfn', help="print filenames to stdout" )
@@ -322,19 +314,8 @@ def parseArgs():
         if os.path.isfile(path): 
             if os.path.getsize(path) > 0:
                 mydb = db(path=path)
+                mList =  mydb.querydb(pattern=args.sqlLike, day=args.day, deltaDays=args.delta, verb=args.verbose)
 
-                if args.day and args.delta:
-                    # TODO sanitize
-                    mList =  mydb.getRowsInDateRange(args.day, numint(args.delta), verb=args.verbose)
-                elif args.day:
-                    mList =  mydb.getRowsInDateRange(args.day, verb=args.verbose)
-                else:
-                    mList =  mydb.getRowsInDateRange(verb=args.verbose)
-
-                if args.regex:
-                    print "ERROR not implemented"
-                    # TODO: write general function which takes dates, ddates and regex
-                    sys.exit(1)
                 if mList:
                     for idm in mList:
                         print idm
