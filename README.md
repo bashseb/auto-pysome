@@ -34,7 +34,8 @@ B. Clustering
       
     Usage example: 
      * `auto-pysome.py --cluster --regex='*prague*' > id-file`
-     * `auto-pysome.py --cluster --day=2010-06-01 --deltadays=2 | tar -czvf id-file.tgz`
+     * `auto-pysome.py --cluster --day=2010-06-01 --deltadays=2 | gzip > id-file.tgz`
+	
               
     OPTIONS:
      * `-r`, `--regex=`  match *filenames* in database with a regular expression
@@ -46,6 +47,9 @@ B. Clustering
 C. Create a video from a cluster
  
   * Create a new random clip from cluster items: `auto-pysome.py --create [--length=60s] [--audio=external (default)|internal] [<cluster-id(s)]`
+    - `auto-pysome.py --create < 1 4 6 10`
+    - `auto-pysome.py --create < $(zcat id-file.tgz)
+
   * View cluster material: `auto-pysome.py --review <cluster-no>`. Interactive control lets you select or deselect items, and create project.
   * Edit cluster sequence (invokes GUI): `auto-pysome.py --edit-cluster <cluster-id> [project-id]`.
   * Set cluster background audio: `auto-pysome.py --bg-audio=<path-to-audio-file>`
