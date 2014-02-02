@@ -7,7 +7,11 @@ from PIL import Image
 import sys
 import os
 import dateutil.parser
+import dateutil.relativedelta as relativedelta
 import time
+#from datetime import date, datetime, time, timedelta
+
+
 
 
 import argparse
@@ -171,11 +175,57 @@ class db:
 
     #def query(self, verb=0, 
 
-    def selectTime(self, day=time.strftime("%Y-%m-%d"), deltaDays=1): # default is today
-        print "TODO"
+    def querydb(self, regex = None, day=None, deltaDays=1, verb=0, pr='Id'):
+        if verb> 0:
+            print "Get rows {} from db ('" + str(self.dbPath) + "') ".format(pr, self.mediaPath)
+            print "Regex '{}', Day {}, delta days {}".format(regex, day, deltaDays)
+
+        if day:
+            theday = dateutil.parser.parse(day)
+            fromd = theday - relativedelta.relativedelta(days=deltaDays-1)
+            tilld = theday + relativedelta.relativedelta(days=deltaDays)
+        else:
+            fromd, tilld = self.check();
+
+        if regex:
+            print regex
+        else:
+            regex = '*'
+
+        con = lite.connect(self.dbPath)
+        with con:
+            if verb > 0:
+                cur.execute("SELECT * FROM Media WHERE date between '{}' and '{}'".format(fromd.isoformat(), tilld.isoformat()))
+                for i in cur.fetchall():
+                    print i
+
+
+    def getRowsInDateRange(self, day=time.strftime("%Y-%m-%d"), deltaDays=1, verb=0): # default is today
+        if verb> 0:
+            print "Get items in date range ('" + str(self.dbPath) + "') using path = '{}'".format(self.mediaPath)
+            print "Day {}, delta days {}".format(day, deltaDays)
+
+        theday = dateutil.parser.parse(day)
+
+        fromd = theday - relativedelta.relativedelta(days=deltaDays-1)
+        tilld = theday + relativedelta.relativedelta(days=deltaDays)
+
+        con = lite.connect(self.dbPath)
+        with con:
+            cur = con.cursor()
+
+            if verb > 0:
+                cur.execute("SELECT * FROM Media WHERE date between '{}' and '{}'".format(fromd.isoformat(), tilld.isoformat()))
+                for i in cur.fetchall():
+                    print i
+
+            cur.execute("SELECT Id FROM Media WHERE date between '{}' and '{}'".format(fromd.isoformat(), tilld.isoformat()))
+            mIds = cur.fetchall()
+
+            return [a[0] for a in mIds]
 
     def check(self, verb=0):
-        if verb> 1:
+        if verb> 0:
             print "Show database information ('" + str(self.dbPath) + "') using path = '{}'".format(self.mediaPath)
 
         con = lite.connect(self.dbPath)
@@ -195,6 +245,7 @@ class db:
             cur.execute('SELECT COUNT(*) FROM Media WHERE Type<100;')
             self.nImages = cur.fetchone()[0]
 
+            # TODO
             cur.execute('SELECT MIN(Date) FROM Media')
             minMedia = cur.fetchone()[0]
             cur.execute('SELECT MAX(Date) FROM Media')
@@ -214,6 +265,8 @@ class db:
 
             print "{} images taken between {} and {}".format(self.nImages, minImages, maxImages)
             print "{} videos taken between {} and {}".format(self.nVideos, minVideos, maxVideos)
+
+            return minMedia, maxMedia
 
                 # TODO No of folders? 
                 # folder names?
@@ -239,25 +292,21 @@ def parseArgs():
     parser.add_argument('-r', '--regex', help="match filenames in databse from a give REGEX" )
     parser.add_argument('-d', '--day', help="match a particular day (YYYY-MM-DD format)" )
     parser.add_argument('-dd', '--delta', help="return entities within range DELTA days of DAY (see -d option). If there is no -d option, today is assumed." )
+    parser.add_argument('-pf', '--printfn', help="print filenames to stdout" )
+
+    # creation options
+    parser.add_argument('-x', '--xtest', help="asldkfjaskldfjl", action="store_true") #TODO
 
     args = parser.parse_args()
 
     if args.dbcreate:
-        dbpath = "my-test.sqlite"
-        mediaPath=TMP_MEDIA_PATH
-
-        if args.dbfile:
-            dbpath = args.dbfile
-        if args.path:
-            mediaPath=args.path
+        path, mediaPath = getPaths(args)
         
-        mydb = db(path=dbpath, mediaPath=mediaPath)
+        mydb = db(path=path, mediaPath=mediaPath)
         mydb.create(verb=args.verbose)
 
     elif args.dbshow:
-        dbpath = "my-test.sqlite"
-        if args.dbfile:
-            dbpath = args.dbfile
+        path, mediaPath = getPaths(args)
 
         if os.path.isfile(dbpath): 
             if os.path.getsize(dbpath) > 0:
@@ -269,9 +318,44 @@ def parseArgs():
         print "ERROR: {} is not a valid file".format(dbpath)
 
     elif args.cluster:
+        path, mediaPath = getPaths(args)
+        if os.path.isfile(path): 
+            if os.path.getsize(path) > 0:
+                mydb = db(path=path)
+
+                if args.day and args.delta:
+                    # TODO sanitize
+                    mList =  mydb.getRowsInDateRange(args.day, numint(args.delta), verb=args.verbose)
+                elif args.day:
+                    mList =  mydb.getRowsInDateRange(args.day, verb=args.verbose)
+                else:
+                    mList =  mydb.getRowsInDateRange(verb=args.verbose)
+
+                if args.regex:
+                    print "ERROR not implemented"
+                    # TODO: write general function which takes dates, ddates and regex
+                    sys.exit(1)
+                if mList:
+                    for idm in mList:
+                        print idm
+                else:
+                    print "No matches found for this date"
+                    sys.exit(1)
+                sys.exit(0)
+    elif args.xtest:
         print "TODO"
     else:
         print parser.format_help()
+
+def getPaths(args):
+    dbpath = "my-test.sqlite"
+    mediaPath=TMP_MEDIA_PATH
+    
+    if args.dbfile:
+        dbpath = args.dbfile
+    if args.path:
+        mediaPath=args.path
+    return dbpath, mediaPath
 
 
 
