@@ -286,6 +286,19 @@ class db:
                 if exc.errno != 2:  # code 2 - no such file or directory
                     raise  # re-raise exception
 
+def ffmpegHeader(overwrite=True):
+    if overwrite:
+        return ["ffmpeg", "-y"]
+    else:
+        return ["ffmpeg"]
+
+def ffmpgCmdStill(filename, length=1,verb=0):
+    # return "ffmpeg -y -loop 1 -i {} -t {} -s 768x432 -aspect 16:9 -vcodec libx264 test169.mp4".format(filename, length)
+    return " -i {} -t {}".format(filename, length)
+
+def ffmpgAudio(filename, verb=0):
+    return " -i {} -strict -2".format(filename)
+
 def resizeShave(filename, resolution, destination='.', xres=768, shave=True, orientation=1, verb=0):
     targetYres = xres*9/16
 
