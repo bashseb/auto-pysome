@@ -1,4 +1,5 @@
 #!/usr/bin/env python2
+from __future__ import division
 import subprocess
 import re
 import sqlite3 as lite
@@ -9,6 +10,7 @@ import os
 import dateutil.parser
 import dateutil.relativedelta as relativedelta
 import time
+
 #from datetime import date, datetime, time, timedelta
 
 
@@ -258,15 +260,81 @@ class db:
         if verb> 0:
             print "Generate naive clip from ('" + str(self.dbPath) + "') "
         con = lite.connect(self.dbPath)
-        with con:
-            cur = con.cursor()
+        # set up temporary directory
+        import tempfile
+        import shutil
+        try:
+            dirpath = tempfile.mkdtemp()
+    
+            with con:
+                cur = con.cursor()
+    
+                if verb > 0:
+                    cur.execute("SELECT * FROM Media WHERE Id IN ({})".format(",".join(map(str, mediaList))) )
+                    for i in cur.fetchall():
+                        print i
+                # convert images
+                cur.execute("SELECT * FROM Media WHERE Id IN ({}) and Type<100 ".format(",".join(map(str, mediaList))) )
+                imgList = cur.fetchall()
+                for img in imgList:
+                    resizeShave(img[1], (img[4],img[5]), destination="tmp2/", orientation=img[6], verb=verb)
+
+        finally:
+            try:
+                shutil.rmtree(dirpath)
+            except OSError as exc:
+                if exc.errno != 2:  # code 2 - no such file or directory
+                    raise  # re-raise exception
+
+def resizeShave(filename, resolution, destination='.', xres=768, shave=True, orientation=1, verb=0):
+    targetYres = xres*9/16
+
+    if not resolution:
+        print "ERROR: NOT implemented"
+        raise
+    else:
+        # convert accepts floating point parameter to `-shave` option. seems fine
+        if orientation == 1:
+            cropy = (xres/resolution[0]*resolution[1] - targetYres)/2
+        elif orientation == 6: # right top
+            cropy = (xres/resolution[1]*resolution[0] - targetYres)/2
+        elif orientation == 8: # left bottom
+            # TODO check
+            cropy = (xres/resolution[1]*resolution[0] - targetYres)/2
+        else:
+            print "ERROR: orientation not handled yet"
+            raise
+    cmd = ["convert", "-regard-warnings", filename]
+    # special case for old images which stored portrait photos in x,y format, with x<y
+    if resolution[0] < resolution[1]:
+        print "WARNING: not auto orientating picture '{}'".format(filename)
+    else:
+        cmd.append("-auto-orient")
+
+    cmd = cmd + ['-resize', str(xres)]
+
+    if shave:
+        cmd = cmd + ['-shave', "0x{}".format(cropy)]
+
+    outfilen = os.path.join(destination, os.path.basename(filename))
+    if verb>0:
+        print cmd
+    cmd.append(outfilen)
+    # import pdb
+    # pdb.set_trace()
+
+    ret = subprocess.call(cmd)
+    if ret:
+        print "ERROR convert"
+        raise
+
 
 
 
 def numint(s):
     try:
         return int(s)
-    except:
+    except ValueError:
         print "Value {0} is not an integer".format(s)
 
 def parseArgs():
@@ -317,14 +385,23 @@ def parseArgs():
                 mList =  mydb.querydb(pattern=args.sqlLike, day=args.day, deltaDays=args.delta, verb=args.verbose)
 
                 if mList:
-                    for idm in mList:
-                        print idm
+                    if args.xtest:
+                        mydb.generateNaive(mList, verb=args.verbose)
+                    else:
+                        for idm in mList:
+                            print idm
                 else:
                     print "No matches found for this date"
                     sys.exit(1)
                 sys.exit(0)
     elif args.xtest:
-        print "TODO"
+        path, mediaPath = getPaths(args)
+        if os.path.isfile(path): 
+            if os.path.getsize(path) > 0:
+                mydb = db(path=path)
+                #TODO
+                #mydb.generateNaive([stdin], verb=args.verbose)
+
     else:
         print parser.format_help()
 

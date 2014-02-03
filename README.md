@@ -16,8 +16,8 @@ This is a complete program, but only command line interface is provided. Feel fr
  * `sqlite3` to store meta info of files
  * `python2 `
  * `ffmpeg` to create the clip
- * [`ffprobe`, eventually]
- * `mplayer` to preview (maybe also -identify)
+ * `convert` from *Imagemagick* to transform input images
+ * `mplayer` to preview (also to `-identify`)
 
 This program can be used in three modi:
 
