@@ -1,5 +1,6 @@
 #!/usr/bin/env python2
 from __future__ import division
+from __future__ import print_function
 import subprocess
 import re
 import sqlite3 as lite
@@ -33,14 +34,14 @@ class db:
         self.VidMatch = ['*.avi', '*.AVI', '*.mp4', '*.MP4', '*.MOV', '*.mov']
 
     def create(self, verb = 0):
-        print "Creating database ('" + str(self.dbPath) + "') using path = '{}'".format(self.mediaPath)
+        print("Creating database ('" + str(self.dbPath) + "') using path = '{}'".format(self.mediaPath))
         subprocess.call(["sqlite3", self.dbPath, '.tables .exit'])
 
         self.traversePath(verb=verb)
         
         if verb > 0:
-            print "Found {} images and {} videos in path '{}'".format(len(self.legitIMGfiles), len(self.legitVIDfiles), self.mediaPath)
-            print "Trying to add them to sqlite3 database '{}' .... ".format(self.dbPath)
+            print("Found {} images and {} videos in path '{}'".format(len(self.legitIMGfiles), len(self.legitVIDfiles), self.mediaPath))
+            print("Trying to add them to sqlite3 database '{}' .... ".format(self.dbPath))
 
         con = lite.connect(self.dbPath)
         with con:
@@ -48,7 +49,7 @@ class db:
             cur.execute('SELECT SQLITE_VERSION()')
             data = cur.fetchone()
             if verb > 0:
-                print "SQLite version: %s" % data  
+                print("SQLite version: %s" % data)
             cur.execute("DROP TABLE IF EXISTS Media")
 
             cur.execute("CREATE TABLE Media (Id INTEGER PRIMARY KEY, Filename TEXT, Date TEXT, Type INTEGER, Xres INTEGER, Yres INTEGER, Orientation INTEGER, Length FLOAT);") 
@@ -72,14 +73,14 @@ class db:
         for item in self.legitIMGfiles:
             date, reso, orient = self.readExif(item)
             if verb > 0:
-                print "adding file '{0}' with date '{1}', resolution '{2}' and orientation '{3}'".format(item, date, reso, orient)
+                print("adding file '{0}' with date '{1}', resolution '{2}' and orientation '{3}'".format(item, date, reso, orient))
             if isinstance(date, basestring):
             #if date != 0:
                 # insert with type = 0 (imgs) and Length = 0.
                 dbCon.execute("INSERT INTO Media(Filename, Date, Type, Xres, Yres, Orientation, Length) VALUES ('" + item + "', '" + date + "', 0, {0}, {1}, {2}, 0.);".format(reso[0], reso[1], orient))
 
         self.nImages = dbCon.lastrowid
-        print " added images. last index " + str( self.nImages)
+        print(" added images. last index " + str( self.nImages))
 
     def addVideos(self, dbCon, verb = 0):
         for item in self.legitVIDfiles:
@@ -87,11 +88,11 @@ class db:
 
             if length > 0:
                 if verb > 0:
-                    print "adding file '{0}' with date '{1}', resolution '{2}' and length '{3}'s".format(item, date, (width,height), length)
+                    print("adding file '{0}' with date '{1}', resolution '{2}' and length '{3}'s".format(item, date, (width,height), length))
                 dbCon.execute("INSERT INTO Media(Filename, Date, Type, Xres, Yres, Orientation, Length) VALUES ('" + item + "', '" + date + "', 100, {0}, {1}, 1, {2});".format(width, height, length))
 
         self.nVideos = dbCon.lastrowid
-        print " added videos. last index " + str( self.nVideos)
+        print(" added videos. last index " + str( self.nVideos))
 
     def readExifVideo(self, filename):
         # there isn't really any EXIF standard on video files.  'Hachoir' could be a match, but it seems even easier with mplayer -identify
@@ -119,10 +120,9 @@ class db:
                 try:
                     l = float(tup[1])
                 except:
-                    print "Value {0} is not a float".format(tup[1])
+                    print( "Value {0} is not a float".format(tup[1]))
             else:
-                print "Video {0} doesn't parse WIDTH/HEIGHT or LENGTH correctly".format(filename)
-                #print r
+                print( "Video {0} doesn't parse WIDTH/HEIGHT or LENGTH correctly".format(filename))
                 return 0, 0, 0, 0
         # match date, must start with '20'
         regex = re.compile("(?P<key>ID_CLIP_INFO_VALUE[0-3]*?)=(?P<value>20.*:.*:.*)$",re.MULTILINE)
@@ -132,11 +132,10 @@ class db:
                 dates = dateutil.parser.parse(r[0][1]) 
 
         else:
-            print "Video {0} doesn't parse DATE correctly".format(filename)
+            print( "Video {0} doesn't parse DATE correctly".format(filename))
             # TODO olympus uses strange date format:
             # [('ID_CLIP_INFO_VALUE0', 'Fri Dec 27 20:48:47 2013'), ('ID_CLIP_INFO_VALUE1', 'OLYMPUS E-P1')]
             # normally 2013-03-06 20:14:48
-            # print r
             return 0, 0, 0, 0
 
         return l, w, h, dates.isoformat()
@@ -157,7 +156,7 @@ class db:
             elif 36868 in exif_data:
                 datestr = exif_data[36868]
             else:
-                print "ignoring " + str(filename)
+                print("ignoring " + str(filename))
                 return 0, 0, 0
             dates = dateutil.parser.parse(datestr.replace(':','-',2)) # date format is YYYY:MM:DD HH:MM:SS, which is not easily parsable
             if 274 in exif_data:
@@ -171,7 +170,7 @@ class db:
         except: 
             # TODO:
             # fallback on file create date
-            print filename + str(" ignored.")
+            print(filename + str(" ignored."))
 
         return 0, 0, 0
 
@@ -180,8 +179,8 @@ class db:
         if not deltaDays:
             deltaDays = 1
         if verb> 0:
-            print "Get rows '{}' from db ('{}') ".format(pr,self.dbPath, self.mediaPath)
-            print "Pattern '{}', Day {}, delta days {}".format(pattern, day, deltaDays)
+            print("Get rows '{}' from db ('{}') ".format(pr,self.dbPath, self.mediaPath))
+            print("Pattern '{}', Day {}, delta days {}".format(pattern, day, deltaDays))
 
         if day:
             theday = dateutil.parser.parse(day)
@@ -201,7 +200,7 @@ class db:
             if verb > 0:
                 cur.execute("SELECT * FROM Media WHERE date between '{}' and '{}' and Filename like '{}'".format(fromd.isoformat(), tilld.isoformat(),pattern))
                 for i in cur.fetchall():
-                    print i
+                    print(i)
 
             cur.execute("SELECT {} FROM Media WHERE date between '{}' and '{}' and Filename like '{}'".format(pr, fromd.isoformat(), tilld.isoformat(),pattern))
 
@@ -209,7 +208,7 @@ class db:
 
     def check(self, verb=0):
         if verb> 0:
-            print "Show database information ('" + str(self.dbPath) + "') using path = '{}'".format(self.mediaPath)
+            print("Show database information ('" + str(self.dbPath) + "') using path = '{}'".format(self.mediaPath))
 
         con = lite.connect(self.dbPath)
         with con:
@@ -217,7 +216,7 @@ class db:
             cur.execute('SELECT SQLITE_VERSION()')
             data = cur.fetchone()
             if verb > 0:
-                print "SQLite version: %s" % data  
+                print("SQLite version: %s" % data  )
             cur.execute('SELECT COUNT(*) FROM Media')
             nRows = cur.fetchone()
 
@@ -246,8 +245,8 @@ class db:
             # SELECT  Id, Filename, date FROM Media WHERE Type>=100 ORDER BY Date;
 
 
-            print "{} images taken between {} and {}".format(self.nImages, minImages, maxImages)
-            print "{} videos taken between {} and {}".format(self.nVideos, minVideos, maxVideos)
+            print("{} images taken between {} and {}".format(self.nImages, minImages, maxImages))
+            print("{} videos taken between {} and {}".format(self.nVideos, minVideos, maxVideos))
 
             minMedia = dateutil.parser.parse(minMedia)
             maxMedia = dateutil.parser.parse(maxMedia)
@@ -258,7 +257,7 @@ class db:
                 # folder names?
     def generateNaive(self, mediaList, verb=0):
         if verb> 0:
-            print "Generate naive clip from ('" + str(self.dbPath) + "') "
+            print("Generate naive clip from ('" + str(self.dbPath) + "') ")
         con = lite.connect(self.dbPath)
         # set up temporary directory
         import tempfile
@@ -272,12 +271,29 @@ class db:
                 if verb > 0:
                     cur.execute("SELECT * FROM Media WHERE Id IN ({})".format(",".join(map(str, mediaList))) )
                     for i in cur.fetchall():
-                        print i
+                        print(i)
+
+                # TODO: randomly select/deselect some pictures
                 # convert images
                 cur.execute("SELECT * FROM Media WHERE Id IN ({}) and Type<100 ".format(",".join(map(str, mediaList))) )
                 imgList = cur.fetchall()
+                imgVids = []
                 for img in imgList:
-                    resizeShave(img[1], (img[4],img[5]), destination="tmp2/", orientation=img[6], verb=verb)
+                    # resizeShave(img[1], (img[4],img[5]), destination=dirpath, orientation=img[6], verb=verb)
+                    outfn = resizeShave(img[1], (img[4],img[5]), destination="tmp2/", orientation=img[6], verb=verb, pretend=True)
+                    constDuration = 2
+                    imgVids.append(renderStill(outfn,length=constDuration, destDir="tmp2/",verb=verb, pretend=True))
+
+                drList = [constDuration] * len(imgVids)
+                # muxPath='tmp2/muxl'
+                # print( ffmpgConcat(imgVids, drList, muxPath=muxPath, verb=verb))
+                concatVid(imgVids, drList, destDir="tmp2/" , verb=verb)
+
+                # TODO: randomly select/deselct some sequences in vids
+                cur.execute("SELECT * FROM Media WHERE Id IN ({}) and Type>=100 ".format(",".join(map(str, mediaList))) )
+                vidList = cur.fetchall()
+
+
 
         finally:
             try:
@@ -286,24 +302,76 @@ class db:
                 if exc.errno != 2:  # code 2 - no such file or directory
                     raise  # re-raise exception
 
-def ffmpegHeader(overwrite=True):
+
+def renderStill(filename, length=3, appendcmd=[], destDir="/tmp", verb=0, pretend=False):
+    cmd = ffmpegHeader(overwrite=True) + ffmpgCmdStill(filename,length=length)
+
+    outfilen = os.path.abspath(os.path.join(destDir, os.path.basename(os.path.splitext(filename)[0]) + '.mp4'))
+    cmd.append(outfilen)
+    if verb>0:
+        print(cmd)
+
+    ret = 0
+    if not pretend:
+        ret = subprocess.call(cmd) # TODO pipe stdout to log
+    if ret:
+        print("ERROR ffmpeg")
+        raise
+    return outfilen
+
+    # TODO check if exists
+
+def concatVid(filenList, durList, destDir = "/tmp", outfname='AUTO_PYSOME__.mp4',verb=0, pretend=False):
+    cmd = ffmpegHeader() + ffmpgConcat(filenList, durList, os.path.join(destDir,outfname+'.meta'))
+    cmd.append(os.path.join(destDir,outfname))
+    if verb>0:
+        print (cmd)
+
+    ret = 0
+    if not pretend:
+        ret = subprocess.call(cmd) # TODO pipe stdout to log
+    if ret:
+        print("ERROR ffmpeg")
+        raise
+    return outfname
+
+
+def ffmpegHeader(overwrite=False):
     if overwrite:
         return ["ffmpeg", "-y"]
     else:
         return ["ffmpeg"]
 
 def ffmpgCmdStill(filename, length=1,verb=0):
-    # return "ffmpeg -y -loop 1 -i {} -t {} -s 768x432 -aspect 16:9 -vcodec libx264 test169.mp4".format(filename, length)
-    return " -i {} -t {}".format(filename, length)
+    # ffmpeg -y -loop 1 -i <inp> -f lavfi -i aevalsrc="0|0:c=2" -t 3 -shortest -s 768x432 -aspect 16:9 -vcodec libx264 -c:a aac -strict -2 out.mp4
+    return ['-loop', '1', '-i', '{}'.format(filename),  '-f',  'lavfi', '-i', 'aevalsrc=0|0:c=2', '-t', '{}'.format(length), '-shortest', '-s', '768x432', '-aspect', '16:9', '-vcodec', 'libx264', '-c:a','aac', '-strict', '-2']
 
 def ffmpgAudio(filename, verb=0):
     return " -i {} -strict -2".format(filename)
 
-def resizeShave(filename, resolution, destination='.', xres=768, shave=True, orientation=1, verb=0):
+def ffmpgConcat(filenList, durList, muxPath='/tmp/muxl', verb=0):
+    # file test169.mp4
+    # duration 3
+    #return "ffmpeg -f concat -i muxlist -codec copy outputDouple_wSound.mp4"
+    if len(filenList) != len(durList):
+        print("Error concat")
+        raise
+    print(filenList)
+    print(durList)
+    with open(muxPath, 'w') as f:
+        for filen, length in zip(filenList, durList):
+            print("file " + filen, file=f)
+            print("duration " + str(length), file=f)
+
+    return ['-f', 'concat', '-i', muxPath, '-codec', 'copy' ]
+
+
+
+def resizeShave(filename, resolution, destination='/tmp', xres=768, shave=True, orientation=1, verb=0, pretend=False):
     targetYres = xres*9/16
 
     if not resolution:
-        print "ERROR: NOT implemented"
+        print("ERROR: NOT implemented")
         raise
     else:
         # convert accepts floating point parameter to `-shave` option. seems fine
@@ -315,12 +383,12 @@ def resizeShave(filename, resolution, destination='.', xres=768, shave=True, ori
             # TODO check
             cropy = (xres/resolution[1]*resolution[0] - targetYres)/2
         else:
-            print "ERROR: orientation not handled yet"
+            print("ERROR: orientation not handled yet")
             raise
     cmd = ["convert", "-regard-warnings", filename]
     # special case for old images which stored portrait photos in x,y format, with x<y
     if resolution[0] < resolution[1]:
-        print "WARNING: not auto orientating picture '{}'".format(filename)
+        print("WARNING: not auto orientating picture '{}'".format(filename))
     else:
         cmd.append("-auto-orient")
 
@@ -329,17 +397,20 @@ def resizeShave(filename, resolution, destination='.', xres=768, shave=True, ori
     if shave:
         cmd = cmd + ['-shave', "0x{}".format(cropy)]
 
-    outfilen = os.path.join(destination, os.path.basename(filename))
-    if verb>0:
-        print cmd
-    cmd.append(outfilen)
-    # import pdb
-    # pdb.set_trace()
+    outfilen = os.path.abspath(os.path.join(destination, os.path.basename(filename)))
+    # TODO check if present
 
-    ret = subprocess.call(cmd)
+    cmd.append(outfilen)
+    if verb>0:
+        print(cmd)
+
+    ret = 0
+    if not pretend:
+        ret = subprocess.call(cmd)
     if ret:
-        print "ERROR convert"
+        print("ERROR convert")
         raise
+    return outfilen
 
 
 
@@ -348,7 +419,7 @@ def numint(s):
     try:
         return int(s)
     except ValueError:
-        print "Value {0} is not an integer".format(s)
+        print("Value {0} is not an integer".format(s))
 
 def parseArgs():
     parser = argparse.ArgumentParser(description="Create randomized clips from your image and video collection")
@@ -388,7 +459,7 @@ def parseArgs():
 
                 sys.exit(0)
 
-        print "ERROR: {} is not a valid file".format(dbpath)
+        print("ERROR: {} is not a valid file".format(dbpath))
 
     elif args.cluster:
         path, mediaPath = getPaths(args)
@@ -402,9 +473,9 @@ def parseArgs():
                         mydb.generateNaive(mList, verb=args.verbose)
                     else:
                         for idm in mList:
-                            print idm
+                            print(idm)
                 else:
-                    print "No matches found for this date"
+                    print("No matches found for this date")
                     sys.exit(1)
                 sys.exit(0)
     elif args.xtest:
@@ -416,7 +487,7 @@ def parseArgs():
                 #mydb.generateNaive([stdin], verb=args.verbose)
 
     else:
-        print parser.format_help()
+        print(parser.format_help())
 
 def getPaths(args):
     dbpath = "my-test.sqlite"
