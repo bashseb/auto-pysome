@@ -282,16 +282,18 @@ class db:
                     # resizeShave(img[1], (img[4],img[5]), destination=dirpath, orientation=img[6], verb=verb)
                     outfn = resizeShave(img[1], (img[4],img[5]), destination="tmp2/", orientation=img[6], verb=verb, pretend=True)
                     constDuration = 2
-                    imgVids.append(renderStill(outfn,length=constDuration, destDir="tmp2/",verb=verb, pretend=True))
+                    imgVids.append(renderStill(outfn,length=constDuration, destDir="tmp2/",verb=verb, pretend=False))
 
                 drList = [constDuration] * len(imgVids)
                 # muxPath='tmp2/muxl'
                 # print( ffmpgConcat(imgVids, drList, muxPath=muxPath, verb=verb))
-                concatVid(imgVids, drList, destDir="tmp2/" , verb=verb)
 
                 # TODO: randomly select/deselct some sequences in vids
                 cur.execute("SELECT * FROM Media WHERE Id IN ({}) and Type>=100 ".format(",".join(map(str, mediaList))) )
                 vidList = cur.fetchall()
+
+                bgAudio = 'tmp2/funkees.ogg'
+                concatVid(imgVids, bgAudio=bgAudio, durList=drList, destDir="tmp2/" , verb=verb)
 
         finally:
             try:
@@ -309,18 +311,18 @@ def renderStill(filename, length=3, appendcmd=[], destDir="/tmp", verb=0, preten
     if verb>0:
         print(cmd)
 
+    # TODO check if exists
     ret = 0
     if not pretend:
         ret = subprocess.call(cmd) # TODO pipe stdout to log
     if ret:
-        print("ERROR ffmpeg")
+        print("ERROR ffmpeg cmd: " + " ".join(cmd))
         raise
     return outfilen
 
-    # TODO check if exists
 
-def concatVid(filenList, durList, destDir = "/tmp", outfname='AUTO_PYSOME__.mp4',verb=0, pretend=False):
-    cmd = ffmpegHeader() + ffmpgConcat(filenList, durList, os.path.join(destDir,outfname+'.meta'))
+def concatVid(filenList, durList, bgAudio, destDir = "/tmp", outfname='AUTO_PYSOME__.mp4',verb=0, pretend=False):
+    cmd = ffmpegHeader() + ffmpgConcat(filenList, bgAudio, durList, os.path.join(destDir,outfname+'.meta'))
     cmd.append(os.path.join(destDir,outfname))
     if verb>0:
         print (cmd)
@@ -329,7 +331,7 @@ def concatVid(filenList, durList, destDir = "/tmp", outfname='AUTO_PYSOME__.mp4'
     if not pretend:
         ret = subprocess.call(cmd) # TODO pipe stdout to log
     if ret:
-        print("ERROR ffmpeg")
+        print("ERROR ffmpeg cmd: " + " ".join(cmd))
         raise
     return outfname
 
@@ -358,13 +360,13 @@ def ffmpgAudio(filename, verb=0):
     return " -i {} -strict -2".format(filename)
 
 # TODO: make durList optional
-def ffmpgConcat(filenList, durList=[], metaList=[], muxPath='/tmp/muxl', verb=0):
+def ffmpgConcat(filenList, bgAudio, durList=[], metaList=[], muxPath='/tmp/muxl', verb=0):
     #return "ffmpeg -f concat -i muxlist -codec copy outputDouple_wSound.mp4"
+    # ffmpeg -v debug -f concat -i muxlist -i ../tmp2/funkees.ogg -map 0:0 -map 1 -shortest -vcodec copy -c:a aac -strict -2  outputDouple_wSound.mp4
     if len(filenList) != len(durList):
         print("Error concat")
         raise
-    print(filenList)
-    print(durList)
+
     with open(muxPath, 'w') as f:
        # for filen, length in zip(filenList, durList):
         for filen, index in zip(filenList, xrange(len(filenList))):
@@ -374,7 +376,8 @@ def ffmpgConcat(filenList, durList=[], metaList=[], muxPath='/tmp/muxl', verb=0)
             if len(metaList) > index:
                 print("# " + str(metaList[index]), file=f)
 
-    return ['-f', 'concat', '-i', muxPath, '-codec', 'copy' ]
+    # TODO: check if audiofile exists and size>0
+    return ['-f', 'concat', '-i', muxPath, '-i', bgAudio, '-map', '0:0', '-map', '1', '-shortest','-vcodec', 'copy', '-c:a', 'aac', '-strict', '-2' ]
 
 
 
