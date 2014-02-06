@@ -1,11 +1,11 @@
 auto-pysome
 ===========
 
-A non-cloud clone of Googles *auto awesome videos* to create videos in a similar fashion on your local files
+A non-cloud clone of Googles *auto awesome videos* to create videos in a similar fashion on your local files.
 
-I'm starting to really like the auto awsome videos my mobile phone sometimes spits out. It combines photos and videos taken recently into a short clip with underlying music. The choice of music, pictures and video sequences appears to be rather random. Eventually, blurry images/,similar images are descared, faces are tracked and audio channel of video is analyized. 
+I'm starting to really like the auto awsome videos my mobile phone sometimes spits out. It combines photos and videos taken recently into a short clip with underlying music. The choice of music, pictures and video sequences appears to be rather random. I started this project to perform similar *memory compression* on my local files, without the need to do actual manual video editing. Minimal controls are exposed, making it simple and fun to edit videos.
 
-I would like to do something similar, but simpler, to the huge collection of videos and photos I have already stored on my computer. 
+Right now, I'm building on a stack of proven technologies available on every *Linux* system. I'd need help to provide a version for *MAC* or *Windows*.
 
 This is a complete program, but only command line interface is provided. Feel free to fork/extend it.
 
@@ -14,8 +14,8 @@ This is a complete program, but only command line interface is provided. Feel fr
 #### Dependencies
 
  * `sqlite3` to store meta info of files
- * `python2 `
- * `ffmpeg` to create the clip
+ * `python2`, but syntax is compatible to python 3
+ * `ffmpeg` to render and concatenate the clip. Eventually simple effects like sliding photos are going to be implemented using this or a different tool.
  * `convert` from *Imagemagick* to transform input images
  * `mplayer` to preview (also to `-identify`)
 
@@ -56,6 +56,10 @@ C. Create a video from a cluster
     
 
 #### Recall from Google
+
+Eventually, blurry images/,similar images are descared, faces are tracked and audio channel of video is analyzed. 
+I would like to do something similar, but simpler, to the huge collection of videos and photos I have already stored on my computer. 
+
 
 The photo app capable of doing these videos has minimal controls:
 
