@@ -293,8 +293,6 @@ class db:
                 cur.execute("SELECT * FROM Media WHERE Id IN ({}) and Type>=100 ".format(",".join(map(str, mediaList))) )
                 vidList = cur.fetchall()
 
-
-
         finally:
             try:
                 shutil.rmtree(dirpath)
@@ -342,16 +340,25 @@ def ffmpegHeader(overwrite=False):
     else:
         return ["ffmpeg"]
 
-def ffmpgCmdStill(filename, length=1,verb=0):
+def ffmpgCmdStill(filename, length=1, res=(768,432), verb=0):
     # ffmpeg -y -loop 1 -i <inp> -f lavfi -i aevalsrc="0|0:c=2" -t 3 -shortest -s 768x432 -aspect 16:9 -vcodec libx264 -c:a aac -strict -2 out.mp4
-    return ['-loop', '1', '-i', '{}'.format(filename),  '-f',  'lavfi', '-i', 'aevalsrc=0|0:c=2', '-t', '{}'.format(length), '-shortest', '-s', '768x432', '-aspect', '16:9', '-vcodec', 'libx264', '-c:a','aac', '-strict', '-2']
+    # explanation:
+    # '-loop' reuse input 0
+    # '-f lavfi -i aevalsrc=0|0:c2' use dummy silent audio source (stereo)
+    # '-t shortest' use the shortest source
+    # '-s axb' resolution
+    # '-aspect' 
+    # '-vcodec libx264' force this output regardless of input
+    # '-c:a aac' force audio aac
+    # '-pix_fmt yuvj444p' force this color space
+    # '-strict -2' enable experimental support
+    return ['-loop', '1', '-i', '{}'.format(filename),  '-f',  'lavfi', '-i', 'aevalsrc=0|0:c=2', '-t', '{}'.format(length), '-shortest', '-s', '{}x{}'.format(res[0], res[1]), '-aspect', '16:9', '-vcodec', 'libx264', '-c:a','aac', '-pix_fmt', 'yuvj444p', '-strict', '-2']
 
 def ffmpgAudio(filename, verb=0):
     return " -i {} -strict -2".format(filename)
 
-def ffmpgConcat(filenList, durList, muxPath='/tmp/muxl', verb=0):
-    # file test169.mp4
-    # duration 3
+# TODO: make durList optional
+def ffmpgConcat(filenList, durList=[], metaList=[], muxPath='/tmp/muxl', verb=0):
     #return "ffmpeg -f concat -i muxlist -codec copy outputDouple_wSound.mp4"
     if len(filenList) != len(durList):
         print("Error concat")
@@ -359,9 +366,13 @@ def ffmpgConcat(filenList, durList, muxPath='/tmp/muxl', verb=0):
     print(filenList)
     print(durList)
     with open(muxPath, 'w') as f:
-        for filen, length in zip(filenList, durList):
+       # for filen, length in zip(filenList, durList):
+        for filen, index in zip(filenList, xrange(len(filenList))):
             print("file " + filen, file=f)
-            print("duration " + str(length), file=f)
+            if len(durList) > index:
+                print("duration " + str(durList[index]), file=f)
+            if len(metaList) > index:
+                print("# " + str(metaList[index]), file=f)
 
     return ['-f', 'concat', '-i', muxPath, '-codec', 'copy' ]
 
