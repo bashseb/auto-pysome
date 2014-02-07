@@ -10,6 +10,7 @@ import sys
 import os
 import dateutil.parser
 import dateutil.relativedelta as relativedelta
+import random
 import time
 
 #from datetime import date, datetime, time, timedelta
@@ -255,7 +256,8 @@ class db:
 
                 # TODO No of folders? 
                 # folder names?
-    def generateNaive(self, mediaList, verb=0):
+
+    def generateNaive(self, mediaList, force=False, verb=0):
         if verb> 0:
             print("Generate naive clip from ('" + str(self.dbPath) + "') ")
         con = lite.connect(self.dbPath)
@@ -273,27 +275,76 @@ class db:
                     for i in cur.fetchall():
                         print(i)
 
-                # TODO: randomly select/deselect some pictures
-                # convert images
+                cur.execute("SELECT * FROM Media WHERE Id IN ({}) and Type>=100 ".format(",".join(map(str, mediaList))) )
+                vidList = cur.fetchall()
+                if not force:
+                    vidList = filterVids(vidList)
+
+                vlen = []
+                for item in vidList:
+                    vlen.append(item[7])
+
+                noClips = len(vidList)
+                totalLen = sum(vlen)
                 cur.execute("SELECT * FROM Media WHERE Id IN ({}) and Type<100 ".format(",".join(map(str, mediaList))) )
                 imgList = cur.fetchall()
+                if not force:
+                    imgList = filterImages(imgList)
+                noImages = len(imgList)
+                #ret = []
+
+                # basic algorithm (except force=True):
+                # If there are no images, but more than three videos, it's rather boring. Emit warning. 
+                # If there are less than three clips and no images, abort
+                # 
+
+                if not force:
+                    if noImages == 0:
+                        if noClips < 3:
+                            print("ERROR: not enough images ({}) or video clips ({}, {} sec)".format(noImages, noClips, totalLen))
+                            raise
+                        else:
+                            print("WARNING: only '{}' images and '{}' video clips (total length '{}' sec)".format(noImages, noClips, totalLen))
+                    else:
+                        if noClips < 3:
+                            print("ERROR: not enough images ({}) or video clips ({}, {} sec)".format(noImages, noClips, totalLen))
+                            raise
+                    if noImages > 15:
+                        print("ERROR: We've got '{}' images and '{}' video clips (length '{}' sec)! Use the '--force' option to really do this.".format(noImages, noClips, totalLen))
+                        raise
+                    if noClips > 9:
+                        print("ERROR: We've got '{}' images and '{}' video clips (length '{}' sec)! Use the '--force' option to really do this.".format(noImages, noClips, totalLen))
+                        raise
+
+                    if verb>0:
+                        print ("Stats: \n{} images\n{} video clips with lengths: ".format(noImages, noClips) + str(vlen).strip('[]'))
+                        print ("Target length: ")
+
+                # Images come in groups of three to five (3*2=6 sec to 5*2=10 secs) There'll be max 3 such sequences (max 30s)
+                # Stills can get up to 30% of the total view time.
+                # a video should begin with a clip and end with a clip. 
+                imgList = defineImgGroups(noImages)
+
+                ll = assignLengths(noImages, imgList, vlen, targetLength=30)
+                # convert images
+                print( ll)
                 imgVids = []
                 for img in imgList:
                     # resizeShave(img[1], (img[4],img[5]), destination=dirpath, orientation=img[6], verb=verb)
                     outfn = resizeShave(img[1], (img[4],img[5]), destination="tmp2/", orientation=img[6], verb=verb, pretend=True)
                     constDuration = 2
-                    imgVids.append(renderStill(outfn,length=constDuration, destDir="tmp2/",verb=verb, pretend=False))
+                    imgVids.append(renderStill(outfn,length=constDuration, destDir="tmp2/",verb=verb, pretend=True))
 
                 drList = [constDuration] * len(imgVids)
                 # muxPath='tmp2/muxl'
                 # print( ffmpgConcat(imgVids, drList, muxPath=muxPath, verb=verb))
 
                 # TODO: randomly select/deselct some sequences in vids
-                cur.execute("SELECT * FROM Media WHERE Id IN ({}) and Type>=100 ".format(",".join(map(str, mediaList))) )
-                vidList = cur.fetchall()
+
+                vidIndices = selectVideoSequences(vidList, len(imgVids), verb=verb)
 
                 bgAudio = 'tmp2/funkees.ogg'
-                concatVid(imgVids, bgAudio=bgAudio, durList=drList, destDir="tmp2/" , verb=verb)
+                concatVid(imgVids, bgAudio=bgAudio, durList=drList, destDir="tmp2/" , verb=verb, pretend=True)
 
         finally:
             try:
@@ -301,6 +352,110 @@ class db:
             except OSError as exc:
                 if exc.errno != 2:  # code 2 - no such file or directory
                     raise  # re-raise exception
+
+def assignLengths(noImages, imgList, vlen, targetLength=30, force=False):
+    # Here I can assume at least one image and two clips
+    videoLen = sum(vlen)
+    noClips  = len(vlen)
+    # images must not be longer than that:
+    maxStillLength = 3
+    minStillLength = 1.1
+
+    longestPossible =  videoLen * 0.7 + noImages * maxStillLength
+    shortestPossible = videoLen * 0.3 + noImages * minStillLength
+
+
+    if not force:
+        # if there is a lot of input material, allow some flexibility
+        if shortestPossible > 4 * targetLength:
+            targetLength *= 2
+            print("WARNING: Input material is overwhelming: {} s of video and {} images provided. I will cut this down to about {} s".format(videoLen, noImages, targetLength))
+        if longestPossible < 10:
+            print("ERROR: Input files cannot produce such a short video: {} s".format(longestPossible))
+            raise
+        elif longestPossible < targetLength-5:
+            print("ERROR: Input files cannot produce a video of target length {} s. Maximum is {} s".format(targetLength, longestPossible))
+            raise
+
+    imgTime = minStillLength + (maxStillLength - minStillLength) * noImages/30
+
+    videoLength = targetLength - imgTime *noImages
+
+    print ("Assigning Lengths:\nTarget time {} s\nTotal video length {}\n{} images with {} s each (={} s)\nRemaining video {} s".format(targetLength, videoLen, noImages, imgTime, imgTime*noImages, videoLength))
+
+    # every video in list contributes at least a short clip
+    times = []
+    if noClips * 5 > videoLength:
+        drawTime = videoLength / noClips
+        print("Each video gets {} s showtime".format(drawTime))
+
+        for clip in vlen:
+            start = random.uniform(2, clip-drawTime-2)
+            end = start+drawTime
+            times.append((start,end))
+
+
+
+    else:
+        # complicated cases where one should draw more from longer videos, say on interval from fist half and one from second half
+        print ("NOT IMPLEMENTED YET")
+        raise
+
+
+    return times
+    
+
+
+
+
+def defineImgGroups(noImages, targetLength = 30):
+    
+    # a group holds 5 images at most
+    split = 4
+    groups = noImages // split + 1
+    ret = []
+    im = 0
+    for subgr in range(groups):
+        ret.append(range(im,im+split))
+        im += split
+
+    retm = ret[-1][:]
+    for i in retm:
+        if i >= noImages:
+            ret[-1].remove(i)
+
+    if len(ret[-1]) == 0:
+        ret.remove([])
+    elif len(ret[-1]) == 1:
+        ret[-2].append(ret[-1][0])
+        ret.remove([ret[-1][0]])
+
+    return ret
+
+    
+def filterVids(vidList):
+            # for item in vidList:
+            #     # checks to eventually drop wrong aspect ratio videos and low resolution videos
+            #     if item[4] < 768 or item[5] < 432: # or item[4]/item[5] <1.7777 :
+            #         if verb>0:
+            #             print("Deselecting item {} due to low resolution".format(item))
+            #     else:
+            #         ret.append(item[0])
+            #         lens.append(item[7])
+    return vidList
+
+def filterImages(imgList):
+    return imgList
+
+def selectVideoSequences(vidList, noImages = 0, force=False, verb=0, pretend=False):
+    """ Return index and sequence times for the given input files """
+
+    # print(vidList)
+
+
+
+    # if just one or two videos and 
+    #return ret
 
 
 def renderStill(filename, length=3, appendcmd=[], destDir="/tmp", verb=0, pretend=False):
@@ -333,6 +488,8 @@ def concatVid(filenList, durList, bgAudio, destDir = "/tmp", outfname='AUTO_PYSO
     if ret:
         print("ERROR ffmpeg cmd: " + " ".join(cmd))
         raise
+
+    print("Summary: '{}' files have been processed into file \n'{}'\nfor a total length of '{}' seconds.".format(len(filenList), os.path.join(destDir,outfname),sum(durList)))
     return outfname
 
 
