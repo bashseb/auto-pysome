@@ -271,11 +271,11 @@ class db:
                 cur = con.cursor()
     
                 if verb > 0:
-                    cur.execute("SELECT * FROM Media WHERE Id IN ({})".format(",".join(map(str, mediaList))) )
+                    cur.execute("SELECT * FROM Media WHERE Id IN ({}) order by date(Date)".format(",".join(map(str, mediaList))) )
                     for i in cur.fetchall():
                         print(i)
 
-                cur.execute("SELECT * FROM Media WHERE Id IN ({}) and Type>=100 ".format(",".join(map(str, mediaList))) )
+                cur.execute("SELECT * FROM Media WHERE Id IN ({}) and Type>=100 order by date(Date)".format(",".join(map(str, mediaList))) )
                 vidList = cur.fetchall()
                 if not force:
                     vidList = filterVids(vidList)
@@ -286,7 +286,7 @@ class db:
 
                 noClips = len(vidList)
                 totalLen = sum(vlen)
-                cur.execute("SELECT * FROM Media WHERE Id IN ({}) and Type<100 ".format(",".join(map(str, mediaList))) )
+                cur.execute("SELECT * FROM Media WHERE Id IN ({}) and Type<100 order by date(Date)".format(",".join(map(str, mediaList))) )
                 imgList = cur.fetchall()
                 if not force:
                     imgList = filterImages(imgList)
@@ -323,11 +323,13 @@ class db:
                 # Images come in groups of three to five (3*2=6 sec to 5*2=10 secs) There'll be max 3 such sequences (max 30s)
                 # Stills can get up to 30% of the total view time.
                 # a video should begin with a clip and end with a clip. 
-                imgList = defineImgGroups(noImages)
+                imgGroups = defineImgGroups(noImages)
+                print(imgList)
 
                 ll = assignLengths(noImages, imgList, vlen, targetLength=30)
-                # convert images
                 print( ll)
+
+                # convert images
                 imgVids = []
                 for img in imgList:
                     # resizeShave(img[1], (img[4],img[5]), destination=dirpath, orientation=img[6], verb=verb)
@@ -358,7 +360,7 @@ def assignLengths(noImages, imgList, vlen, targetLength=30, force=False):
     videoLen = sum(vlen)
     noClips  = len(vlen)
     # images must not be longer than that:
-    maxStillLength = 3
+    maxStillLength = 2
     minStillLength = 1.1
 
     longestPossible =  videoLen * 0.7 + noImages * maxStillLength
@@ -377,7 +379,7 @@ def assignLengths(noImages, imgList, vlen, targetLength=30, force=False):
             print("ERROR: Input files cannot produce a video of target length {} s. Maximum is {} s".format(targetLength, longestPossible))
             raise
 
-    imgTime = minStillLength + (maxStillLength - minStillLength) * noImages/30
+    imgTime = minStillLength + (maxStillLength - minStillLength) * noImages/15
 
     videoLength = targetLength - imgTime *noImages
 
@@ -389,8 +391,8 @@ def assignLengths(noImages, imgList, vlen, targetLength=30, force=False):
         drawTime = videoLength / noClips
         print("Each video gets {} s showtime".format(drawTime))
 
-        for clip in vlen:
-            start = random.uniform(2, clip-drawTime-2)
+        for cliplen in vlen:
+            start = random.uniform(2, cliplen-drawTime-2)
             end = start+drawTime
             times.append((start,end))
 
@@ -410,6 +412,8 @@ def assignLengths(noImages, imgList, vlen, targetLength=30, force=False):
 
 def defineImgGroups(noImages, targetLength = 30):
     
+    # TODO: this should work differently!
+    # the groups should be selected by the time stamp!!!
     # a group holds 5 images at most
     split = 4
     groups = noImages // split + 1
@@ -604,7 +608,8 @@ def parseArgs():
 
     # clustering options
     parser.add_argument('-cc', '--cluster', help="perform clustering of database", action="store_true")
-    parser.add_argument('-sq', '--sqlLike', help="match filenames in database from a given sql like expression, e.g. --sqlLike=%tmp_[asdf][0-9]% " )
+    #parser.add_argument('-sq', '--sqlLike', help="match filenames in database from a given sql like expression, e.g. --sqlLike="+'%tmp_[asdf][0-9]\% ' )
+    parser.add_argument('-sq', '--sqlLike', help="match filenames in database from a given sql like expression, e.g. --sqlLike=" )
     parser.add_argument('-d', '--day', help="match a particular day (YYYY-MM-DD format)" )
     parser.add_argument('-dd', '--delta', help="return entities within range DELTA days of DAY (see -d option). If there is no -d option, today is assumed." )
     parser.add_argument('-pf', '--printfn', help="print filenames to stdout" )
